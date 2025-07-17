@@ -1,0 +1,52 @@
+from flask import Flask, jsonify, request
+import random
+
+app = Flask(__name__)
+
+# Global robot state
+robot_state = "waiting_for_package"  # other state: "package_ready_for_pickup"
+current_pin = None
+
+@app.route("/status", methods=["GET"])
+def status():
+    return jsonify({
+        "state": robot_state,
+        "pin_required": robot_state == "package_ready_for_pickup"
+    })
+
+@app.route("/delivered", methods=["POST"])
+def delivered():
+    global robot_state
+    robot_state = "package_ready_for_pickup"
+    print("[Robot] Package has arrived and is ready for pickup.")
+    return jsonify({"message": "Package ready for pickup"})
+
+@app.route("/request_open", methods=["POST"])
+def request_open():
+    global robot_state, current_pin
+    if robot_state != "package_ready_for_pickup":
+        return jsonify({"error": "Not ready for pickup"}), 400
+    
+    current_pin = f"{random.randint(1000, 9999)}"
+    print(f"[Robot] PIN generated: {current_pin}")
+    return jsonify({"message": "PIN generated"})
+
+@app.route("/enter_pin", methods=["POST"])
+def enter_pin():
+    global robot_state, current_pin
+    data = request.json
+    entered_pin = data.get("pin")
+
+    if not entered_pin:
+        return jsonify({"error": "PIN not provided"}), 400
+
+    if entered_pin == current_pin:
+        print("[Robot] PIN matched! Opening box...")
+        robot_state = "waiting_for_package"
+        return jsonify({"message": "Access granted"})
+    else:
+        print("[Robot] Invalid PIN attempt.")
+        return jsonify({"error": "Invalid PIN"}), 403
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)
