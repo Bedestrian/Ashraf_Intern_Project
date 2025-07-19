@@ -75,15 +75,14 @@ class _ProductPageState extends State<ProductPage> {
         );
 
         final newOrder = jsonDecode(response.body);
-        final String orderId = newOrder['id']; // Extract the new order's ID
+        final String orderId = newOrder['id'];
 
-        // Navigate to Order In Progress page
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => OrderInProgressPage(
               orderId: orderId,
-              userId: widget.userId, // Pass userId and token for consistency
+              userId: widget.userId,
               token: widget.token,
             ),
           ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:url_launcher/url_launcher.dart'; // For launching QR code URL
+import 'package:url_launcher/url_launcher.dart';
 
 class OrderInProgressPage extends StatefulWidget {
   final String orderId;
@@ -23,24 +23,21 @@ class _OrderInProgressPageState extends State<OrderInProgressPage> {
   Map<String, dynamic>? order;
   bool isLoading = true;
   String currentStatus = "Fetching status...";
-  String? robotIp; // To store the robot's IP once it's assigned to the order
+  String? robotIp;
 
   @override
   void initState() {
     super.initState();
     _fetchOrderStatus();
-    // Start polling for status updates (for demo purposes)
-    // In a real app, consider websockets or PocketBase's realtime API
+
     _startStatusPolling();
   }
 
   void _startStatusPolling() {
-    // Poll every 5 seconds for status updates
-    // For a real app, consider using PocketBase's realtime API or web sockets
+
     Future.delayed(const Duration(seconds: 5), () {
       if (mounted) {
         _fetchOrderStatus();
-        // Continue polling if the order isn't delivered or picked up
         if (currentStatus != 'delivered' && currentStatus != 'picked_up') {
           _startStatusPolling();
         }
@@ -61,9 +58,7 @@ class _OrderInProgressPageState extends State<OrderInProgressPage> {
         setState(() {
           order = data;
           currentStatus = order!['status'];
-          // Assuming the robot IP might be part of the order data when "arrived"
-          // Or we might need a separate 'deliveries' collection in PocketBase later
-          robotIp = order!['robot_ip']; // Placeholder: you'll need to add 'robot_ip' field to 'orders' collection in PB or map from 'deliveries'
+          robotIp = order!['robot_ip'];
           isLoading = false;
         });
         print('✅ Order status fetched: $currentStatus');
@@ -82,27 +77,12 @@ class _OrderInProgressPageState extends State<OrderInProgressPage> {
       });
     }
   }
-
-  // Function to simulate scanning QR code and launching URL
-  // In a real app, this would be triggered by a QR code scanner package
   void _scanQrCodeAndLaunch() async {
-    // For now, let's simulate a QR code pointing to our robot's IP
-    // In a real scenario, this would be provided by an actual QR scanner.
-    // The placeholder QR code for the demo will link to your IP address running the server.
-    // Example: "http://<your_robot_ip_here>/pickup_ready?order_id=${widget.orderId}"
-    // For this demo, let's use the local IP for the robot script (5000)
-    // The idea is the QR code will provide the robot's IP or identifier.
-
-    // For now, we'll assume the robot IP is available.
-    // In the future, the 'robot_ip' would be assigned to the order in PocketBase.
-    final simulatedRobotIp = '127.0.0.1:5000'; // Replace with your actual robot script's IP and port if different
+    final simulatedRobotIp = '127.0.0.1:5000';
 
     final url = 'http://$simulatedRobotIp/pickup_ready?order_id=${widget.orderId}';
     if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication); // Opens in browser/external app
-      // Or you might handle it internally to navigate to a specific page
-      // Navigator.push(context, MaterialPageRoute(builder: (context) => PickupPage(robotIp: simulatedRobotIp)));
-      // For now, we'll assume this just "connects" the app to the robot.
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not launch URL: $url')),
@@ -110,9 +90,8 @@ class _OrderInProgressPageState extends State<OrderInProgressPage> {
     }
   }
 
-  // This method would be called after the user enters the PIN from the robot
   Future<void> _verifyPinAndOpenBox(String enteredPin) async {
-    final simulatedRobotIp = '127.0.0.1:5000'; // Your robot script's IP and port
+    final simulatedRobotIp = '127.0.0.1:5000';
     final url = Uri.parse('http://$simulatedRobotIp/verify_pin');
 
     try {
@@ -129,7 +108,6 @@ class _OrderInProgressPageState extends State<OrderInProgressPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('PIN verified! Robot box opening...')),
         );
-        // Optionally, update order status to "box_opened" in PocketBase
         _updateOrderStatus('box_opened');
       } else {
         final errorData = jsonDecode(response.body);
@@ -144,12 +122,10 @@ class _OrderInProgressPageState extends State<OrderInProgressPage> {
     }
   }
 
-  // This method would be called when the user presses "Package Received"
   Future<void> _markPackageReceived() async {
-    // Update status in PocketBase
     await _updateOrderStatus('delivered');
 
-    final simulatedRobotIp = '127.0.0.1:5000'; // Your robot script's IP and port
+    final simulatedRobotIp = '127.0.0.1:5000';
     final url = Uri.parse('http://$simulatedRobotIp/package_received');
 
     try {

@@ -54,8 +54,6 @@ class _LoginPageState extends State<LoginPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Login successful!")),
         );
-
-        // Navigate to the ProductPage upon successful login
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -133,10 +131,8 @@ class _LoginPageState extends State<LoginPage> {
                 child: const Text("Login"),
               ),
               const SizedBox(height: 20),
-              // You could add a "Register" button here if needed
               TextButton(
                 onPressed: () {
-                  // Navigate to a registration page if you have one
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text("Register functionality not implemented in this demo.")),
                   );
