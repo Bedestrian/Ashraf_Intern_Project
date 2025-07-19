@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'order_in_progress_page.dart'; // Import the new page
 
 class ProductPage extends StatefulWidget {
   final String userId;
@@ -72,7 +73,21 @@ class _ProductPageState extends State<ProductPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Order placed!")),
         );
-        // You can navigate to Order In Progress page here
+
+        final newOrder = jsonDecode(response.body);
+        final String orderId = newOrder['id']; // Extract the new order's ID
+
+        // Navigate to Order In Progress page
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => OrderInProgressPage(
+              orderId: orderId,
+              userId: widget.userId, // Pass userId and token for consistency
+              token: widget.token,
+            ),
+          ),
+        );
       } else {
         print("❌ Failed to place order: ${response.body}");
         ScaffoldMessenger.of(context).showSnackBar(
@@ -94,39 +109,39 @@ class _ProductPageState extends State<ProductPage> {
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : products.isEmpty
-              ? const Center(child: Text("No products available."))
-              : ListView.builder(
-                  itemCount: products.length,
-                  itemBuilder: (context, index) {
-                    final product = products[index];
-                    final imageUrl = product['image'] != null && product['image'] != ""
-                        ? 'http://127.0.0.1:8090/api/files/products/${product['id']}/${product['image']}'
-                        : null;
+          ? const Center(child: Text("No products available."))
+          : ListView.builder(
+        itemCount: products.length,
+        itemBuilder: (context, index) {
+          final product = products[index];
+          final imageUrl = product['image'] != null && product['image'] != ""
+              ? 'http://127.0.0.1:8090/api/files/products/${product['id']}/${product['image']}'
+              : null;
 
-                    return Card(
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      child: ListTile(
-                        leading: imageUrl != null
-                            ? Image.network(
-                                imageUrl,
-                                width: 50,
-                                height: 50,
-                                fit: BoxFit.cover,
-                              )
-                            : const Icon(Icons.image_not_supported),
-                        title: Text(product['name']),
-                        subtitle: Text("\$${product['price']}"),
-                        trailing: ElevatedButton(
-                          onPressed: () {
-                            placeOrder(product['id']);
-                          },
-                          child: const Text("Order"),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+          return Card(
+            margin: const EdgeInsets.symmetric(
+                horizontal: 12, vertical: 8),
+            child: ListTile(
+              leading: imageUrl != null
+                  ? Image.network(
+                imageUrl,
+                width: 50,
+                height: 50,
+                fit: BoxFit.cover,
+              )
+                  : const Icon(Icons.image_not_supported),
+              title: Text(product['name']),
+              subtitle: Text("\$${product['price']}"),
+              trailing: ElevatedButton(
+                onPressed: () {
+                  placeOrder(product['id']);
+                },
+                child: const Text("Order"),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }
