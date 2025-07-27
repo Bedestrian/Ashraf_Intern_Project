@@ -8,7 +8,7 @@ app = Flask(__name__)
 
 POCKETBASE_URL = "http://127.0.0.1:8090"
 ROBOT_USER_EMAIL = "mashraf3@emich.edu"
-ROBOT_USER_PASSWORD = "Pakistanburbank1234!"
+ROBOT_USER_PASSWORD = "may42005"
 
 robot_deliveries = {}
 robot_id = "delivery_robot_001"

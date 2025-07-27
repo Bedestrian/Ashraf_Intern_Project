@@ -23,18 +23,23 @@ class _OrderInProgressPageState extends State<OrderInProgressPage> {
   Map<String, dynamic>? order;
   bool isLoading = true;
   String currentStatus = "Fetching status...";
-  String? robotIp;
+  String? robotPin;
+  final TextEditingController _pinInputController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _fetchOrderStatus();
-
     _startStatusPolling();
   }
 
-  void _startStatusPolling() {
+  @override
+  void dispose() {
+    _pinInputController.dispose();
+    super.dispose();
+  }
 
+  void _startStatusPolling() {
     Future.delayed(const Duration(seconds: 5), () {
       if (mounted) {
         _fetchOrderStatus();
@@ -44,7 +49,6 @@ class _OrderInProgressPageState extends State<OrderInProgressPage> {
       }
     });
   }
-
 
   Future<void> _fetchOrderStatus() async {
     try {
@@ -58,10 +62,15 @@ class _OrderInProgressPageState extends State<OrderInProgressPage> {
         setState(() {
           order = data;
           currentStatus = order!['status'];
-          robotIp = order!['robot_ip'];
+          robotPin = order!['pin'];
           isLoading = false;
         });
         print('✅ Order status fetched: $currentStatus');
+
+        if (currentStatus == 'pending') {
+          _dispatchRobot(widget.orderId, widget.userId);
+        }
+
       } else {
         print('🔴 Failed to fetch order status: ${response.body}');
         setState(() {
@@ -77,20 +86,55 @@ class _OrderInProgressPageState extends State<OrderInProgressPage> {
       });
     }
   }
-  void _scanQrCodeAndLaunch() async {
-    final simulatedRobotIp = '127.0.0.1:5000';
 
-    final url = 'http://$simulatedRobotIp/pickup_ready?order_id=${widget.orderId}';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    } else {
+  Future<void> _dispatchRobot(String orderId, String userId) async {
+    final simulatedRobotIp = '127.0.0.1:5000';
+    final url = Uri.parse('http://$simulatedRobotIp/dispatch_robot');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'order_id': orderId,
+          'user_id': userId,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print("✅ Robot dispatched successfully for order $orderId!");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Robot dispatched!')),
+        );
+      } else {
+        print("❌ Failed to dispatch robot: ${response.body}");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to dispatch robot: ${response.reasonPhrase}')),
+        );
+      }
+    } catch (e) {
+      print("❌ Error dispatching robot: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not launch URL: $url')),
+        SnackBar(content: Text("Network error dispatching robot: $e")),
       );
     }
   }
 
-  Future<void> _verifyPinAndOpenBox(String enteredPin) async {
+  void _scanQrCodeAndLaunch() async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Simulating QR scan. The robot should now be displaying a PIN.')),
+    );
+  }
+
+  Future<void> _verifyPinAndOpenBox() async {
+    final enteredPin = _pinInputController.text.trim();
+    if (enteredPin.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter the PIN.')),
+      );
+      return;
+    }
+
     final simulatedRobotIp = '127.0.0.1:5000';
     final url = Uri.parse('http://$simulatedRobotIp/verify_pin');
 
@@ -166,7 +210,10 @@ class _OrderInProgressPageState extends State<OrderInProgressPage> {
       if (response.statusCode == 200) {
         print("✅ Order status updated to $newStatus in PocketBase.");
         setState(() {
-          currentStatus = newStatus; // Update local state immediately
+          currentStatus = newStatus;
+          if (newStatus != 'arrived') {
+            _pinInputController.clear();
+          }
         });
       } else {
         print("❌ Failed to update order status: ${response.body}");
@@ -201,8 +248,15 @@ class _OrderInProgressPageState extends State<OrderInProgressPage> {
               "Current Status: ${currentStatus.toUpperCase()}",
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
+            if (currentStatus == 'arrived' && robotPin != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10.0),
+                child: Text(
+                  "Robot PIN: ${robotPin!}",
+                  style: const TextStyle(fontSize: 24, color: Colors.blue, fontWeight: FontWeight.w500),
+                ),
+              ),
             const SizedBox(height: 30),
-            // Conditional UI based on status
             if (currentStatus == 'pending')
               const Text('Your order is pending. Robot is being dispatched.'),
             if (currentStatus == 'delivery_started')
@@ -216,7 +270,7 @@ class _OrderInProgressPageState extends State<OrderInProgressPage> {
                   ),
                   const SizedBox(height: 20),
                   ElevatedButton.icon(
-                    onPressed: _scanQrCodeAndLaunch, // Simulates QR scan. In real app, this would be scanner output
+                    onPressed: _scanQrCodeAndLaunch,
                     icon: const Icon(Icons.qr_code),
                     label: const Text('Simulate Scan Robot QR Code'),
                     style: ElevatedButton.styleFrom(
@@ -224,22 +278,18 @@ class _OrderInProgressPageState extends State<OrderInProgressPage> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  // Text field for PIN entry
                   TextField(
-                    controller: TextEditingController(), // Needs a real controller
+                    controller: _pinInputController,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
                       labelText: 'Enter PIN from Robot Screen',
                       border: OutlineInputBorder(),
                     ),
-                    onSubmitted: (value) => _verifyPinAndOpenBox(value),
+                    onSubmitted: (value) => _verifyPinAndOpenBox(),
                   ),
                   const SizedBox(height: 10),
                   ElevatedButton(
-                    onPressed: () {
-                      // For demo, we'll just use a placeholder PIN or read from a controller
-                      _verifyPinAndOpenBox('1234'); // Replace with actual controller value
-                    },
+                    onPressed: _verifyPinAndOpenBox,
                     child: const Text('Verify PIN'),
                   ),
                 ],
