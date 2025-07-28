@@ -6,7 +6,8 @@ import requests
 
 app = Flask(__name__)
 
-POCKETBASE_URL = "http://127.0.0.1:8090"
+import os
+POCKETBASE_URL = os.getenv("POCKETBASE_URL", "http://127.0.0.1:8090")
 ROBOT_USER_EMAIL = "mashraf3@emich.edu"
 ROBOT_USER_PASSWORD = "may42005"
 

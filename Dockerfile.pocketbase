@@ -1,0 +1,11 @@
+FROM alpine:3.18
+
+WORKDIR /pb
+
+COPY pocketbase .
+
+RUN chmod +x pocketbase
+
+EXPOSE 8090
+
+ENTRYPOINT ["./pocketbase", "serve", "--http", "0.0.0.0:8090"]

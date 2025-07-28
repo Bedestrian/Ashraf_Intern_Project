@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # PocketBase Backend Service
+  pocketbase:
+    build:
+      context: .
+      dockerfile: Dockerfile.pocketbase
+    container_name: bedestrian-pocketbase
+    ports:
+      - "8090:8090" # Map host port 8090 to container port 8090
+    volumes:
+      - pocketbase_data:/pb/pb_data # Persist PocketBase data
+    networks:
+      - bedestrian_network
+    restart: unless-stopped # Always restart unless explicitly stopped
+
+  # Python Robot Server Service
+  robot_server:
+    build:
+      context: .
+      dockerfile: Dockerfile.robot
+    container_name: bedestrian-robot-server
+    ports:
+      - "5000:5000" # Map host port 5000 to container port 5000
+    networks:
+      - bedestrian_network
+    # Ensure robot_server starts after pocketbase is ready
+    depends_on:
+      - pocketbase
+    restart: unless-stopped
+    # Environment variables for PocketBase URL (optional, but good practice)
+    # environment:
+    #   - POCKETBASE_URL=http://pocketbase:8090 # Use service name for inter-container communication
+
+  # Flutter Web Application Service
+  webapp:
+    build:
+      context: .
+      dockerfile: Dockerfile.webapp
+    container_name: bedestrian-webapp
+    ports:
+      - "80:80" # Map host port 80 to container port 80 (standard HTTP)
+    networks:
+      - bedestrian_network
+    depends_on:
+      - pocketbase # Web app needs PocketBase to fetch data
+    restart: unless-stopped
+
+# Define volumes for persistent data
+volumes:
+  pocketbase_data:
+
+# Define a custom network for inter-service communication
+networks:
+  bedestrian_network:
+    driver: bridge
