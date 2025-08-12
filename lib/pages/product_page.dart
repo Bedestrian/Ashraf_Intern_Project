@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'order_in_progress_page.dart'; // Import the new page
+import 'package:order_delivery_demo/pages/order_in_progress_page.dart'; // Correct import path
+import 'package:order_delivery_demo/pages/config.dart';
+import 'package:flutter/foundation.dart';
 
 class ProductPage extends StatefulWidget {
   final String userId;
@@ -16,17 +18,34 @@ class ProductPage extends StatefulWidget {
 class _ProductPageState extends State<ProductPage> {
   List products = [];
   bool isLoading = true;
+  String? _baseUrl;
 
   @override
   void initState() {
     super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    _baseUrl = await AppConfig.apiUrl;
+    if (_baseUrl == null && !kIsWeb) {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Server URL not configured.")),
+        );
+      }
+      return;
+    }
     fetchProducts();
   }
 
   Future<void> fetchProducts() async {
     try {
       final response = await http.get(
-        Uri.parse('http://127.0.0.1:8090/api/collections/products/records'),
+        Uri.parse('$_baseUrl/api/collections/products/records'),
         headers: {'Authorization': 'Bearer ${widget.token}'},
       );
 
@@ -50,7 +69,7 @@ class _ProductPageState extends State<ProductPage> {
   }
 
   Future<void> placeOrder(String productId) async {
-    final url = 'http://127.0.0.1:8090/api/collections/orders/records';
+    final url = '$_baseUrl/api/collections/orders/records';
 
     final body = {
       "user_id": widget.userId,
@@ -113,8 +132,8 @@ class _ProductPageState extends State<ProductPage> {
         itemCount: products.length,
         itemBuilder: (context, index) {
           final product = products[index];
-          final imageUrl = product['image'] != null && product['image'] != ""
-              ? 'http://127.0.0.1:8090/api/files/products/${product['id']}/${product['image']}'
+          final imageUrl = _baseUrl != null && product['image'] != null && product['image'] != ""
+              ? '$_baseUrl/api/files/products/${product['id']}/${product['image']}'
               : null;
 
           return Card(

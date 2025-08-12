@@ -2,9 +2,10 @@ FROM alpine:3.18
 
 WORKDIR /pb
 
-COPY pocketbase .
+COPY pocketbase.exe ./pocketbase
 
-RUN chmod +x pocketbase
+RUN apk add --no-cache libc6-compat \
+    && chmod +x pocketbase
 
 EXPOSE 8090
 

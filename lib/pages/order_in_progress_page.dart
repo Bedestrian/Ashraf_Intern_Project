@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:order_delivery_demo/pages/config.dart';
+import 'package:flutter/foundation.dart';
 
 class OrderInProgressPage extends StatefulWidget {
   final String orderId;
@@ -26,10 +28,13 @@ class _OrderInProgressPageState extends State<OrderInProgressPage> {
   String? robotPin;
   final TextEditingController _pinInputController = TextEditingController();
 
+  String? _pocketBaseUrl;
+  String? _robotUrl;
+
   @override
   void initState() {
     super.initState();
-    _fetchOrderStatus();
+    _loadUrlsAndFetchStatus();
     _startStatusPolling();
   }
 
@@ -37,6 +42,26 @@ class _OrderInProgressPageState extends State<OrderInProgressPage> {
   void dispose() {
     _pinInputController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadUrlsAndFetchStatus() async {
+    _pocketBaseUrl = await AppConfig.apiUrl;
+    _robotUrl = await AppConfig.robotApiUrl;
+
+    if (_pocketBaseUrl == null || _robotUrl == null) {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          currentStatus = "Configuration error";
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Server URL not configured.")),
+        );
+      }
+      return;
+    }
+
+    _fetchOrderStatus();
   }
 
   void _startStatusPolling() {
@@ -53,7 +78,7 @@ class _OrderInProgressPageState extends State<OrderInProgressPage> {
   Future<void> _fetchOrderStatus() async {
     try {
       final response = await http.get(
-        Uri.parse('http://127.0.0.1:8090/api/collections/orders/records/${widget.orderId}?expand=product_id'),
+        Uri.parse('$_pocketBaseUrl/api/collections/orders/records/${widget.orderId}?expand=product_id'),
         headers: {'Authorization': 'Bearer ${widget.token}'},
       );
 
@@ -88,8 +113,7 @@ class _OrderInProgressPageState extends State<OrderInProgressPage> {
   }
 
   Future<void> _dispatchRobot(String orderId, String userId) async {
-    final simulatedRobotIp = '127.0.0.1:5000';
-    final url = Uri.parse('http://$simulatedRobotIp/dispatch_robot');
+    final url = Uri.parse('$_robotUrl/dispatch_robot');
 
     try {
       final response = await http.post(
@@ -135,8 +159,7 @@ class _OrderInProgressPageState extends State<OrderInProgressPage> {
       return;
     }
 
-    final simulatedRobotIp = '127.0.0.1:5000';
-    final url = Uri.parse('http://$simulatedRobotIp/verify_pin');
+    final url = Uri.parse('$_robotUrl/verify_pin');
 
     try {
       final response = await http.post(
@@ -169,8 +192,7 @@ class _OrderInProgressPageState extends State<OrderInProgressPage> {
   Future<void> _markPackageReceived() async {
     await _updateOrderStatus('delivered');
 
-    final simulatedRobotIp = '127.0.0.1:5000';
-    final url = Uri.parse('http://$simulatedRobotIp/package_received');
+    final url = Uri.parse('$_robotUrl/package_received');
 
     try {
       final response = await http.post(
@@ -196,7 +218,7 @@ class _OrderInProgressPageState extends State<OrderInProgressPage> {
   }
 
   Future<void> _updateOrderStatus(String newStatus) async {
-    final url = 'http://127.0.0.1:8090/api/collections/orders/records/${widget.orderId}';
+    final url = '$_pocketBaseUrl/api/collections/orders/records/${widget.orderId}';
     try {
       final response = await http.patch(
         Uri.parse(url),
@@ -225,11 +247,15 @@ class _OrderInProgressPageState extends State<OrderInProgressPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text("Order In Progress")),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
     return Scaffold(
       appBar: AppBar(title: const Text("Order In Progress")),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
+      body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'product_page.dart'; // Add this line
+import 'package:order_delivery_demo/pages/product_page.dart'; // Correct import path
+import 'package:order_delivery_demo/pages/settings_page.dart'; // Correct import path
+import 'package:order_delivery_demo/pages/config.dart';
+import 'package:flutter/foundation.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -13,7 +16,23 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  bool _isLoading = false;
+  bool _isLoading = true;
+  String? _baseUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkServerUrl();
+  }
+
+  Future<void> _checkServerUrl() async {
+    _baseUrl = await AppConfig.apiUrl;
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   Future<void> _login() async {
     setState(() {
@@ -33,10 +52,21 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    final url = Uri.parse('http://127.0.0.1:8090/api/collections/users/auth-with-password');
+    final baseUrl = await AppConfig.apiUrl;
+    if (baseUrl == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please set the server URL in settings.")),
+      );
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
+
+    final url = Uri.parse('$baseUrl/api/collections/users/auth-with-password');
     final headers = {'Content-Type': 'application/json'};
     final body = jsonEncode({
-      'identity': email, // Can be email or username
+      'identity': email,
       'password': password,
     });
 
@@ -69,7 +99,7 @@ class _LoginPageState extends State<LoginPage> {
     } catch (e) {
       print('🔴 Login Error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Network error: Could not connect to server.")),
+        const SnackBar(content: Text("Network error: Could not connect to server.")),
       );
     } finally {
       setState(() {
@@ -80,10 +110,30 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    // Direct to settings if on mobile/desktop and no URL is set
+    if (_baseUrl == null && !kIsWeb) {
+      return const SettingsPage();
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Login"),
         backgroundColor: Colors.deepPurple,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsPage()),
+              ).then((_) => _checkServerUrl()); // Re-check URL when returning
+            },
+          ),
+        ],
       ),
       body: Center(
         child: SingleChildScrollView(
